@@ -4,8 +4,11 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ClientHandler implements Runnable {
+    private static List<ClientHandler> clients = new ArrayList<>();
     private Socket socket;
     private DBUtility utility;
     private Statement database;
@@ -22,6 +25,7 @@ public class ClientHandler implements Runnable {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream());
             client = utility.login(socket);
+            if (client != null) out.println(client.getUsername() + " logged in.");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -31,11 +35,44 @@ public class ClientHandler implements Runnable {
         String message;
         while (socket.isConnected()) {
             try {
+                out.println(client.getUsername() + ": ");
                 message = in.readLine();
 
             } catch (Exception e) {
-                e.printStackTrace();
+                closeEverything(socket, in, out);
             }
         }
+    }
+
+    public void broadcastMessage(String message) {
+        for (var client : clients) {
+            try {
+                if (!client.getClient().getUsername().equals(this.client.getUsername())) {
+                    client.out.println(message);
+                }
+            } catch (Exception e) {
+                closeEverything(socket, in, out);
+            }
+        }
+    }
+
+    public void removeClientHandler() {
+        clients.remove(this);
+
+    }
+
+    public void closeEverything(Socket socket, BufferedReader in, PrintWriter out) {
+        removeClientHandler();
+        try {
+            if (in != null) in.close();
+            if (out != null) out.close();
+            if (socket != null) socket.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Client getClient() {
+        return client;
     }
 }

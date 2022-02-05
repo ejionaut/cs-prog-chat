@@ -61,22 +61,31 @@ public class DBUtility {
     public Client login(Socket socket) {
         Client client = null;
         try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT * FROM account WHERE username =? AND password =?")) {
+
             out.println("Username: ");
             String username = in.readLine();
             out.println("Password: ");
             String password = in.readLine();
 
-            PreparedStatement statement = connection.prepareStatement("SELECT * FROM account WHERE username =? AND password =?");
+            username.replace("\\b", "");
+            password.replace("\\b", "");
 
             statement.setString(1, username);
             statement.setString(2, password);
 
             ResultSet account = statement.executeQuery();
 
-            client = new Client(account.getInt(1), account.getString(2), account.getString(3));
+            if (account.next()) client =
+                    new Client(account.getInt(1),
+                            account.getString(2),
+                            account.getString(3));
 
-
+            else throw new NoSuchUserException("User " + client.getUsername() + " not found.");
+            connection.close();
+            return client;
         } catch (IOException ioException) {
             ioException.printStackTrace();
         } catch (NoSuchUserException noSuchUser) {
@@ -86,7 +95,6 @@ public class DBUtility {
                 e.printStackTrace();
             }
         } catch (SQLException sqlException) {
-
         }
         return client;
     }
